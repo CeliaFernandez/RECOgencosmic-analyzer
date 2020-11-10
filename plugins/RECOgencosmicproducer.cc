@@ -125,6 +125,8 @@ class RECOgencosmicproducer : public edm::one::EDAnalyzer<edm::one::SharedResour
       Float_t CM_vx[100];
       Float_t CM_vy[100];
       Float_t CM_vz[100];
+      Float_t CM_timeAtIpInOut[100];
+      Float_t CM_timeAtIpOutIn[100];
 
       //// Reconstructed cosmic muons 1 leg
       Int_t nCM1L;
@@ -144,6 +146,8 @@ class RECOgencosmicproducer : public edm::one::EDAnalyzer<edm::one::SharedResour
       Float_t CM1L_vx[100];
       Float_t CM1L_vy[100];
       Float_t CM1L_vz[100];
+      Float_t CM1L_timeAtIpInOut[100];
+      Float_t CM1L_timeAtIpOutIn[100];
 
       // Output definition:
       TFile *file_out;
@@ -294,6 +298,8 @@ void RECOgencosmicproducer::analyze(const edm::Event& iEvent, const edm::EventSe
       CM_vx[nCM] = muon.vx();
       CM_vy[nCM] = muon.vy();
       CM_vz[nCM] = muon.vz();
+      CM_timeAtIpInOut[nCM] = muon.time().timeAtIpInOut;
+      CM_timeAtIpOutIn[nCM] = muon.time().timeAtIpOutIn;
       
       nCM++;
 
@@ -322,6 +328,8 @@ void RECOgencosmicproducer::analyze(const edm::Event& iEvent, const edm::EventSe
       CM1L_vx[nCM1L] = muon.vx();
       CM1L_vy[nCM1L] = muon.vy();
       CM1L_vz[nCM1L] = muon.vz();
+      CM1L_timeAtIpInOut[nCM] = muon.time().timeAtIpInOut;
+      CM1L_timeAtIpOutIn[nCM] = muon.time().timeAtIpOutIn;
       
       nCM1L++;
 
@@ -412,6 +420,8 @@ void RECOgencosmicproducer::beginJob()
   tree_out->Branch("CM_numberOfValidHits", CM_numberOfValidHits, "CM_numberOfValidHits[nCM]/I");
   tree_out->Branch("CM_chi2", CM_chi2, "CM_chi2[nCM]/F");
   tree_out->Branch("CM_ndof", CM_ndof, "CM_ndof[nCM]/F");
+  tree_out->Branch("CM_timeAtIpInOut", CM_timeAtIpInOut, "CM_timeAtIpInOut[nCM]/F");
+  tree_out->Branch("CM_timeAtIpOutIn", CM_timeAtIpOutIn, "CM_timeAtIpOutIn[nCM]/F");
 
 
   tree_out->Branch("nCM1L", &nCM1L, "nCM1L/I");
@@ -431,6 +441,8 @@ void RECOgencosmicproducer::beginJob()
   tree_out->Branch("CM1L_numberOfValidHits", CM1L_numberOfValidHits, "CM1L_numberOfValidHits[nCM1L]/I");
   tree_out->Branch("CM1L_chi2", CM1L_chi2, "CM1L_chi2[nCM1L]/F");
   tree_out->Branch("CM1L_ndof", CM1L_ndof, "CM1L_ndof[nCM1L]/F");
+  tree_out->Branch("CM1L_timeAtIpInOut", CM1L_timeAtIpInOut, "CM1L_timeAtIpInOut[nCM1L]/F");
+  tree_out->Branch("CM1L_timeAtIpOutIn", CM1L_timeAtIpOutIn, "CM1L_timeAtIpOutIn[nCM1L]/F");
 
 }
 //=======================================================================================================================================================================================================================//
