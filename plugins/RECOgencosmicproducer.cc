@@ -22,6 +22,10 @@
 #include "DataFormats/TrackReco/interface/TrackFwd.h"
 #include "DataFormats/MuonReco/interface/Muon.h"
 
+#include "FWCore/Common/interface/TriggerNames.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
+
+
 #include <string>
 #include <iostream>
 #include <vector>
@@ -62,17 +66,22 @@ class RECOgencosmicproducer : public edm::one::EDAnalyzer<edm::one::SharedResour
 
       edm::ParameterSet parameters;
       std::string output_filename;
+      bool _isData;
 
       //// Get Tokens ////
       edm::EDGetTokenT<edm::View<reco::GenParticle> > theGenParticleCollection;
       edm::EDGetTokenT<edm::View<reco::Track> > theDGCollection;
       edm::EDGetTokenT<edm::View<reco::Muon> > theCosmicMuonCollection;
       edm::EDGetTokenT<edm::View<reco::Muon> > theCosmicMuon1LegCollection;
+      edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
 
       //// General info /////
       Int_t Event_event;
       Int_t Event_run;
       Int_t Event_luminosityBlock;
+
+      //// Trigger ////
+      Bool_t Flag_HLT_L2Mu10_NoVertex_NoBPTX3BX;
 
       //// Generated cosmic muon
       Float_t genMu_pt;
@@ -170,6 +179,7 @@ RECOgencosmicproducer::RECOgencosmicproducer(const edm::ParameterSet& iConfig)
    theDGCollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("DGCollection"));
    theCosmicMuonCollection = consumes<edm::View<reco::Muon> >  (parameters.getParameter<edm::InputTag>("CosmicMuonCollection"));
    theCosmicMuon1LegCollection = consumes<edm::View<reco::Muon> >  (parameters.getParameter<edm::InputTag>("CosmicMuon1LegCollection"));
+   triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
 
 }
 //=======================================================================================================================================================================================================================//
@@ -197,10 +207,9 @@ void RECOgencosmicproducer::analyze(const edm::Event& iEvent, const edm::EventSe
 
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
-   
-   edm::Handle<edm::View<reco::GenParticle> > genParticles;
-   iEvent.getByToken(theGenParticleCollection, genParticles);
 
+   edm::Handle<edm::View<reco::GenParticle> > genParticles;
+   
    edm::Handle<edm::View<reco::Track> > DGs;
    iEvent.getByToken(theDGCollection, DGs);
   
@@ -210,22 +219,55 @@ void RECOgencosmicproducer::analyze(const edm::Event& iEvent, const edm::EventSe
    edm::Handle<edm::View<reco::Muon> > CM1Ls;
    iEvent.getByToken(theCosmicMuon1LegCollection, CM1Ls);
 
+   edm::Handle<edm::TriggerResults> triggerBits;
+   iEvent.getByToken(triggerBits_, triggerBits);
+
    //////////////////////////////// EVENT INFO  ////////////////////////////////
    Event_event = iEvent.id().event();
    Event_run = iEvent.id().run();
    Event_luminosityBlock = iEvent.id().luminosityBlock();
 
 
+   //////////////////////////////// TRIGGER (only data)  ////////////////////////////////
+
+   if (_isData) {
+
+     const edm::TriggerNames &trigNames = iEvent.triggerNames(*triggerBits);
+     std::string triggerPath = "HLT_L2Mu10_NoVertex_NoBPTX3BX_v";
+     std::string version;
+     std::string finalPath;
+
+     for (int s = 0; s < 20; s++){
+       version = triggerPath + std::to_string(s);
+       if (trigNames.size() != trigNames.triggerIndex(version)) {
+         finalPath = version;
+         break;
+       }
+     }
+
+     Flag_HLT_L2Mu10_NoVertex_NoBPTX3BX = triggerBits->accept(trigNames.triggerIndex(finalPath));
+
+   } else {
+
+     Flag_HLT_L2Mu10_NoVertex_NoBPTX3BX = true; // If MC trigger always true by default
+
+   }
+
+
    //////////////////////////////// GENERATED MUON  ////////////////////////////////
 
-   // Loop to identify the generated muons
-   for(size_t i = 0; i < genParticles->size(); i++) {
+   if (!_isData) {
 
-      const reco::GenParticle &particle = (*genParticles)[i];
+     iEvent.getByToken(theGenParticleCollection, genParticles);
 
-      if ( abs( particle.pdgId() ) == 13 ){
+     // Loop to identify the generated muons
+     for(size_t i = 0; i < genParticles->size(); i++) {
 
-         if ( particle.status() == 1 ) {
+        const reco::GenParticle &particle = (*genParticles)[i];
+
+        if ( abs( particle.pdgId() ) == 13 ){
+
+           if ( particle.status() == 1 ) {
 
             genMu_pt = particle.pt();
             genMu_eta = particle.eta();
@@ -240,9 +282,11 @@ void RECOgencosmicproducer::analyze(const edm::Event& iEvent, const edm::EventSe
             genMu_q = particle.charge();
 
 
-         }
+           }
 
-      }
+        }
+
+     }
 
    }
 
@@ -362,6 +406,9 @@ void RECOgencosmicproducer::beginJob()
   std::cout << "Begin Job" << std::endl;
 
   output_filename = parameters.getParameter<std::string>("nameOfOutput");
+  _isData = parameters.getParameter<bool>("isData");
+
+
   file_out = new TFile(output_filename.c_str(), "RECREATE");
 
 
@@ -372,6 +419,7 @@ void RECOgencosmicproducer::beginJob()
   // Branches:
 
   tree_out->Branch("Event_event", &Event_event, "Event_event/I");
+  tree_out->Branch("Flag_HLT_L2Mu10_NoVertex_NoBPTX3BX", &Flag_HLT_L2Mu10_NoVertex_NoBPTX3BX, "Flag_HLT_L2Mu10_NoVertex_NoBPTX3BX/O");
 
   tree_out->Branch("genMu_pt", &genMu_pt, "genMu_pt/F");
   tree_out->Branch("genMu_px", &genMu_px, "genMu_px/F");
